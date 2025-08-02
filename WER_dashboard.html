@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WER Analysis Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script>
+    <script type="text/javascript">
+        if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {
+            window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});
+        }
+    </script>
+    <script type="text/javascript">
+        window.PlotlyConfig = {MathJaxConfig: 'local'};
+    </script>
+    <style>
+        :root {
+            --primary: #3a86ff;
+            --secondary: #ff006e;
+            --tertiary: #06d6a0;
+            --quaternary: #ffbe0b;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-300: #dee2e6;
+            --gray-400: #ced4da;
+            --gray-500: #adb5bd;
+            --gray-600: #6c757d;
+            --gray-700: #495057;
+            --gray-800: #343a40;
+            --gray-900: #212529;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --border-radius: 0.5rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        .subtitle {
+            color: var(--gray-600);
+            font-size: 1.125rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .dashboard-summary {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .summary-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .stat-value.good {
+            color: var(--tertiary);
+        }
+
+        .stat-value.average {
+            color: var(--quaternary);
+        }
+
+        .stat-value.poor {
+            color: var(--secondary);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 650px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dashboard-card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .plotly-graph-div {
+            width: 100% !important;
+            height: 400px !important;
+        }
+
+        .js-plotly-plot {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+        }
+
+        .js-plotly-plot .plotly .modebar {
+            background-color: rgba(255, 255, 255, 0.8) !important;
+            border-radius: 20px !important;
+            box-shadow: var(--shadow) !important;
+        }
+
+        .js-plotly-plot .plotly .modebar-btn {
+            color: var(--primary) !important;
+        }
+
+        .js-plotly-plot .plotly .modebar-btn:hover {
+            color: var(--secondary) !important;
+        }
+
+        .js-plotly-plot .plotly .main-svg {
+            border-radius: 10px !important;
+            box-shadow: var(--shadow-sm) !important;
+        }
+
+        .js-plotly-plot .plotly .subplot {
+            transition: all 0.3s ease !important;
+        }
+
+        .js-plotly-plot .plotly .subplot:hover {
+            filter: brightness(1.02) !important;
+        }
+
+        /* Add futuristic glow effects */
+        .js-plotly-plot .plotly .main-svg:hover {
+            box-shadow: 0 15px 35px rgba(58, 134, 255, 0.1) !important;
+        }
+
+        /* Add subtle animation */
+        @keyframes pulse {
+            0% { opacity: 0.9; }
+            50% { opacity: 1; }
+            100% { opacity: 0.9; }
+        }
+
+        .js-plotly-plot .plotly .annotation-text {
+            animation: pulse 3s infinite ease-in-out;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .dashboard-summary {
+                padding: 1rem;
+            }
+
+            .summary-title {
+                font-size: 1.125rem;
+            }
+
+            .stat-value {
+                font-size: 1.125rem;
+            }
+
+            .card-header {
+                padding: 1rem;
+            }
+
+            .card-title {
+                font-size: 1rem;
+            }
+
+            .card-content {
+                padding: 1rem;
+            }
+
+            .plotly-graph-div {
+                height: 300px !important;
+            }
+        }
+
+        /* Dark mode toggle */
+        .theme-toggle {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 3rem;
+            height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--secondary);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        /* Dark theme */
+        body.dark-theme {
+            background-color: var(--gray-900);
+            color: var(--gray-100);
+        }
+
+        body.dark-theme .dashboard-summary,
+        body.dark-theme .dashboard-card {
+            background-color: var(--gray-800);
+            box-shadow: var(--shadow);
+        }
+
+        body.dark-theme .card-header {
+            border-bottom-color: var(--gray-700);
+        }
+
+        body.dark-theme h1,
+        body.dark-theme .summary-title,
+        body.dark-theme .card-title {
+            color: var(--gray-100);
+        }
+
+        body.dark-theme .subtitle,
+        body.dark-theme .stat-label,
+        body.dark-theme .card-subtitle {
+            color: var(--gray-400);
+        }
+
+        /* Loading indicator */
+        .loading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        body.dark-theme .loading-container {
+            background-color: rgba(33, 37, 41, 0.8);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--gray-300);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Tooltip styles */
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            z-index: 100;
+            max-width: 300px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        body.dark-theme .tooltip {
+            background-color: var(--gray-800);
+            color: var(--gray-100);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>WHISPER TRANSCRIPTION ANALYSIS DASHBOARD</h1>
+            <p class="subtitle">Comprehensive analysis of speech recognition accuracy metrics and performance indicators</p>
+        </div>
+
+        <div class="dashboard-summary">
+            <div>
+                <h2 class="summary-title">WER Analysis Summary</h2>
+            </div>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Sample Count</span>
+                    <span class="stat-value">100</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Average WER</span>
+                    <span class="stat-value poor">25.82%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Median WER</span>
+                    <span class="stat-value average">23.51%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Min WER</span>
+                    <span class="stat-value good">3.44%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Max WER</span>
+                    <span class="stat-value poor">80.15%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Std Dev</span>
+                    <span class="stat-value">14.48%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">WER Distribution</h3>
+                        <p class="card-subtitle">Frequency distribution of Word Error Rate across samples</p>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="wer-distribution" class="plotly-graph-div"></div>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">WER vs Length</h3>
+                        <p class="card-subtitle">Relationship between transcription length and error rate</p>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="wer-vs-length" class="plotly-graph-div"></div>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">Top 10 Highest WER</h3>
+                        <p class="card-subtitle">Samples with the highest error rates</p>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="top-wer" class="plotly-graph-div"></div>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">WER by Sample</h3>
+                        <p class="card-subtitle">Error rate trends across all voice samples</p>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="wer-by-sample" class="plotly-graph-div"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title">WER Category Distribution</h3>
+                    <p class="card-subtitle">Relationship between transcription length categories and WER performance</p>
+                </div>
+            </div>
+            <div class="card-content">
+                <div id="wer-heatmap" class="plotly-graph-div"></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="theme-toggle" aria-label="Toggle dark mode">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
+
+    <script>
+        // Sample data
+        const werData = [0.35367665723356584,0.2485580660782393,0.4159590873381714,0.15996757580999196,0.5502830780616322,0.11094528759339801,0.5098966417920571,0.17727037947274454,0.19829047191334442,0.37623678821354994,0.5434668040445325,0.08476376294265023,0.3579287927839609,0.2733207739503824,0.13437614109485027,0.35325485000480755,0.13279012143275798,0.32643436842516804,0.1658104012585459,0.207734214505591,0.26340848808284784,0.39001433036648914,0.15364547000727538,0.30550235119832064,0.203313881265596,0.18387687608823067,0.36782408723548077,0.20209676646387698,0.18633950452881945,0.2835202997539891,0.10039930306621214,0.20772938916523406,0.3096377073595142,0.0443858001226034,0.12457921344554526,0.21100332015818626,0.3581887554246956,0.6522422663601021,0.16226602605678067,0.0694242954698856,0.076848080809821,0.1744335165862888,0.5434537469656785,0.061653913446673224,0.23568650663126414,0.31329412667520323,0.15258331470398612,0.38688633601837824,0.4845897602554896,0.09593877797328496,0.3662241584833629,0.29837284269070247,0.2237663665214278,0.1642916485213648,0.46138582746288664,0.09832146075036968,0.179247512983417,0.34301873259799726,0.2746698380360602,0.4432945779277498,0.13272443189522465,0.4006430877209991,0.32259603850098684,0.2923618255131976,0.11357697325263676,0.34155895722546276,0.16999587395941756,0.8014732049023443,0.13177062408757453,0.12549965919150205,0.3370138954716539,0.03439862200520179,0.15937752033309405,0.2615158445906097,0.2491194021961276,0.0685869246308145,0.45950640724990544,0.5414781386117564,0.26059606181093153,0.06753590748378506,0.04676883497272682,0.12713147658095109,0.3265987258278122,0.11912486541113898,0.10776704550146234,0.32460102630740867,0.21935449118475614,0.30479223202169464,0.403730071467841,0.18412892169781056,0.23447365948588197,0.175068748991844,0.2673316734797696,0.238699744225137,0.32579561073076047,0.4434878606676832,0.3855671372233749,0.09615258168656671,0.2089847738799713,0.16619623428044838];
+        
+        const lengthData = [187,36,131,14,38,174,175,92,145,118,74,95,154,80,54,141,45,79,168,28,198,117,191,176,100,99,28,48,135,182,150,135,67,157,70,136,114,176,10,140,101,199,122,162,65,170,175,126,143,67,53,182,169,182,70,56,158,89,127,173,156,29,194,155,56,58,23,152,168,10,126,63,127,12,153,194,21,83,25,111,161,165,126,17,131,101,173,99,145,195,69,187,37,110,50,164,154,170,166,150];
+        
+        const voiceLabels = Array.from({length: 100}, (_, i) => `Voice_${i+1}`);
+        
+        // Top 10 highest WER
+        const topWerIndices = werData.map((val, idx) => ({val, idx}))
+            .sort((a, b) => b.val - a.val)
+            .slice(0, 10)
+            .map(item => item.idx);
+            
+        const topWerValues = topWerIndices.map(idx => werData[idx]);
+        const topWerLabels = topWerIndices.map(idx => voiceLabels[idx]);
+
+        // Create WER Distribution plot
+        function createWerDistribution() {
+            const trace1 = {
+                x: werData,
+                type: 'histogram',
+                name: 'WER Distribution',
+                marker: {
+                    color: werData,
+                    colorscale: [
+                        [0, '#3a86ff'],
+                        [1, '#ff006e']
+                    ],
+                    line: {
+                        color: 'white',
+                        width: 0.5
+                    },
+                    opacity: 0.8
+                },
+                hovertemplate: '<span style="font-family: \'Inter\', sans-serif;">WER: %{x:.4f}<br>Count: %{y}</span><extra></extra>',
+                nbinsx: 20
+            };
+
+            const trace2 = {
+                x: [...Array(101).keys()].map(i => i * 0.8014732049023443 / 100),
+                y: [],
+                mode: 'lines',
+                name: 'Density',
+                line: {
+                    color: '#ff006e',
+                    shape: 'spline',
+                    smoothing: 1.3,
+                    width: 3
+                },
+                hoverinfo: 'skip'
+            };
+
+            // Calculate KDE for density curve
+            const bandwidth = 0.03;
+            trace2.y = trace2.x.map(x => {
+                return werData.reduce((sum, val) => {
+                    return sum + Math.exp(-Math.pow(x - val, 2) / (2 * Math.pow(bandwidth, 2))) / (bandwidth * Math.sqrt(2 * Math.PI));
+                }, 0) / werData.length;
+            });
+
+            const layout = {
+                title: {
+                    text: '',
+                    font: {
+                        family: 'Inter, sans-serif',
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: {
+                        text: 'Word Error Rate (WER)',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Frequency',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                shapes: [{
+                    type: 'line',
+                    x0: 0,
+                    y0: 0,
+                    x1: 1,
+                    y1: 0,
+                    xref: 'paper',
+                    yref: 'paper',
+                    line: {
+                        color: 'rgba(0,0,0,0.1)',
+                        width: 1,
+                        dash: 'dot'
+                    }
+                }],
+                margin: {
+                    l: 50,
+                    r: 20,
+                    t: 20,
+                    b: 50
+                },
+                showlegend: true,
+                legend: {
+                    x: 0.01,
+                    y: 0.99,
+                    bgcolor: 'rgba(255,255,255,0.8)',
+                    bordercolor: 'rgba(0,0,0,0.1)',
+                    borderwidth: 1
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('wer-distribution', [trace1, trace2], layout, {responsive: true});
+        }
+
+        // Create WER vs Length plot
+        function createWerVsLength() {
+            const trace = {
+                x: lengthData,
+                y: werData,
+                mode: 'markers',
+                type: 'scatter',
+                name: 'WER vs Length',
+                marker: {
+                    color: werData,
+                    colorscale: [
+                        [0, '#06d6a0'],
+                        [0.5, '#ffbe0b'],
+                        [1, '#ff006e']
+                    ],
+                    size: 10,
+                    opacity: 0.8,
+                    showscale: true,
+                    colorbar: {
+                        title: {
+                            text: 'WER',
+                            font: {
+                                family: 'Inter, sans-serif'
+                            }
+                        },
+                        tickfont: {
+                            family: 'Inter, sans-serif'
+                        },
+                        len: 0.5,
+                        y: 0.8,
+                        yanchor: 'top',
+                        thickness: 15
+                    }
+                },
+                text: voiceLabels,
+                hovertemplate: '<span style="font-family: \'Inter\', sans-serif; font-weight: 300;"><b>%{text}</b><br>Length: %{x} words<br>WER: %{y:.4f}</span><extra></extra>'
+            };
+
+            // Add trend line
+            const xValues = [...Array(190).keys()].map(i => i + 10);
+            const yValues = Array(xValues.length).fill(0.25);
+
+            const trendLine = {
+                x: xValues,
+                y: yValues,
+                mode: 'lines',
+                name: 'Trend',
+                line: {
+                    color: '#8338ec',
+                    width: 3,
+                    dash: 'solid'
+                },
+                hoverinfo: 'skip'
+            };
+
+            const layout = {
+                title: {
+                    text: '',
+                    font: {
+                        family: 'Inter, sans-serif',
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: {
+                        text: 'Transcription Length (words)',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Word Error Rate (WER)',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                margin: {
+                    l: 50,
+                    r: 20,
+                    t: 20,
+                    b: 50
+                },
+                showlegend: true,
+                legend: {
+                    x: 0.01,
+                    y: 0.99,
+                    bgcolor: 'rgba(255,255,255,0.8)',
+                    bordercolor: 'rgba(0,0,0,0.1)',
+                    borderwidth: 1
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('wer-vs-length', [trace, trendLine], layout, {responsive: true});
+        }
+
+        // Create Top 10 Highest WER plot
+        function createTopWer() {
+            const trace = {
+                x: topWerLabels,
+                y: topWerValues,
+                type: 'bar',
+                name: 'Top 10 Highest WER',
+                marker: {
+                    color: topWerValues,
+                    colorscale: [
+                        [0, '#ffbe0b'],
+                        [0.5, '#ff006e'],
+                        [1, '#ff0000']
+                    ],
+                    opacity: 0.9,
+                    line: {
+                        color: 'white',
+                        width: 0.5
+                    }
+                },
+                hovertemplate: '<span style="font-family: \'Inter\', sans-serif;"><b>%{x}</b><br>WER: %{y:.4f}</span><extra></extra>'
+            };
+
+            const layout = {
+                title: {
+                    text: '',
+                    font: {
+                        family: 'Inter, sans-serif',
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: {
+                        text: 'Voice Sample',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Word Error Rate (WER)',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                margin: {
+                    l: 50,
+                    r: 20,
+                    t: 20,
+                    b: 80
+                },
+                showlegend: false,
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('top-wer', [trace], layout, {responsive: true});
+        }
+
+        // Create WER by Sample plot
+        function createWerBySample() {
+            const trace = {
+                x: voiceLabels,
+                y: werData,
+                mode: 'lines',
+                name: 'WER by Sample',
+                line: {
+                    color: '#3a86ff',
+                    width: 3,
+                    shape: 'spline',
+                    smoothing: 1.3
+                },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(58, 134, 255, 0.2)',
+                hovertemplate: '<span style="font-family: \'Inter\', sans-serif;"><b>%{x}</b><br>WER: %{y:.4f}</span><extra></extra>'
+            };
+
+            const markers = {
+                x: voiceLabels,
+                y: werData,
+                mode: 'markers',
+                marker: {
+                    color: '#3a86ff',
+                    size: 6,
+                    line: {
+                        color: 'white',
+                        width: 1
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'skip'
+            };
+
+            const layout = {
+                title: {
+                    text: '',
+                    font: {
+                        family: 'Inter, sans-serif',
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: {
+                        text: 'Voice Sample',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    },
+                    rangeslider: {
+                        visible: true,
+                        thickness: 0.05,
+                        bgcolor: '#f8f9fa',
+                        bordercolor: '#e0e0e0'
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Word Error Rate (WER)',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                shapes: [{
+                    type: 'line',
+                    x0: 0,
+                    y0: 0.258154085578693,
+                    x1: 1,
+                    y1: 0.258154085578693,
+                    xref: 'paper',
+                    line: {
+                        color: '#ff006e',
+                        width: 2,
+                        dash: 'dot'
+                    }
+                }],
+                margin: {
+                    l: 50,
+                    r: 20,
+                    t: 20,
+                    b: 100
+                },
+                showlegend: true,
+                legend: {
+                    x: 0.01,
+                    y: 0.99,
+                    bgcolor: 'rgba(255,255,255,0.8)',
+                    bordercolor: 'rgba(0,0,0,0.1)',
+                    borderwidth: 1
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('wer-by-sample', [trace, markers], layout, {responsive: true});
+        }
+
+        // Create WER Heatmap
+        function createWerHeatmap() {
+            const categories = ["Excellent", "Good", "Average", "Poor", "Very Poor"];
+            const lengthCategories = ["Very Short", "Short", "Medium", "Long", "Very Long"];
+            
+            // Sample data for the heatmap
+            const z = [
+                [0.19, 0.24, 0.29, 0.10, 0.19],
+                [0.25, 0.10, 0.20, 0.30, 0.15],
+                [0.16, 0.11, 0.21, 0.21, 0.32],
+                [0.25, 0.25, 0.20, 0.10, 0.20],
+                [0.15, 0.30, 0.10, 0.30, 0.15]
+            ];
+
+            const trace = {
+                x: categories,
+                y: lengthCategories,
+                z: z,
+                type: 'heatmap',
+                colorscale: [
+                    [0, '#06d6a0'],
+                    [0.5, '#ffbe0b'],
+                    [1, '#ff006e']
+                ],
+                text: z.map(row => row.map(val => val.toFixed(2))),
+                texttemplate: '%{text:.2f}',
+                textfont: {
+                    family: 'Inter, sans-serif',
+                    size: 12,
+                    color: 'white'
+                },
+                hovertemplate: '<span style="font-family: \'Inter\', sans-serif;"><b>Length: %{y}</b><br>WER Category: %{x}<br>Proportion: %{z:.2f}</span><extra></extra>'
+            };
+
+            const layout = {
+                title: {
+                    text: '',
+                    font: {
+                        family: 'Inter, sans-serif',
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: {
+                        text: 'WER Category',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Transcription Length',
+                        font: {
+                            family: 'Inter, sans-serif',
+                            size: 14
+                        }
+                    },
+                    tickfont: {
+                        family: 'Inter, sans-serif',
+                        size: 12
+                    }
+                },
+                margin: {
+                    l: 120,
+                    r: 20,
+                    t: 20,
+                    b: 50
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)'
+            };
+
+            Plotly.newPlot('wer-heatmap', [trace], layout, {responsive: true});
+        }
+
+        // Initialize all charts
+        document.addEventListener('DOMContentLoaded', function() {
+            createWerDistribution();
+            createWerVsLength();
+            createTopWer();
+            createWerBySample();
+            createWerHeatmap();
+            
+            // Hide loading spinner
+            setTimeout(() => {
+                document.querySelector('.loading-container').style.display = 'none';
+            }, 1000);
+            
+            // Theme toggle functionality
+            const themeToggle = document.querySelector('.theme-toggle');
+            themeToggle.addEventListener('click', function() {
+                document.body.classList.toggle('dark-theme');
+                
+                // Update chart backgrounds based on theme
+                const plots = ['wer-distribution', 'wer-vs-length', 'top-wer', 'wer-by-sample', 'wer-heatmap'];
+                const isDark = document.body.classList.contains('dark-theme');
+                
+                plots.forEach(plot => {
+                    Plotly.relayout(plot, {
+                        'paper_bgcolor': isDark ? 'rgba(33, 37, 41, 0)' : 'rgba(0, 0, 0, 0)',
+                        'plot_bgcolor': isDark ? 'rgba(33, 37, 41, 0)' : 'rgba(0, 0, 0, 0)'
+                    });
+                });
+                
+                // Update theme toggle icon
+                if (isDark) {
+                    themeToggle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+                } else {
+                    themeToggle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const plots = ['wer-distribution', 'wer-vs-length', 'top-wer', 'wer-by-sample', 'wer-heatmap'];
+                plots.forEach(plot => {
+                    Plotly.relayout(plot, {
+                        'autosize': true
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
