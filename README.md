@@ -337,8 +337,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Contact
 
 **Project Maintainers:**
-- **Niranjan**: ASR implementation and evaluation
-- **Krithika**: Dataset creation and validation
+- **Rudraksh Mohanty**: ASR implementation and evaluation (Whisper Model) + Dataset Validation 
+- **Krithika**: Dataset creation and validation + ASR implementation and evaluation (Wav2Vec2)
 
 **Repository**: [GitHub Link](https://github.com/your-username/Bilingual-Speech-Processing-Code-Switching-Detection-and-Translation)
 
